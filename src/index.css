@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  
+  --color-primary: #ff6b6b;
+  --color-secondary: #feca57;
+  --color-accent: #48dbfb;
+  --color-sweet-pink: #ff9ff3;
+  --color-sweet-yellow: #feca57;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900;
+  background-image: 
+    radial-gradient(circle at 2px 2px, rgba(255, 107, 107, 0.05) 1px, transparent 0);
+  background-size: 40px 40px;
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+.candy-gradient {
+  background: linear-gradient(135deg, #ff9ff3 0%, #feca57 100%);
+}
+
+.candy-pattern {
+  background-color: #fef2f2;
+  background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #fef2f2 40px ), repeating-linear-gradient( #fee2e255, #fee2e2 );
+}
+
+.blob-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  opacity: 0.4;
+}
+
+.blob {
+  position: absolute;
+  filter: blur(80px);
+  border-radius: 50%;
+}
