@@ -18,4 +18,3 @@ View your app in AI Studio: https://ai.studio/apps/7e8b755c-01ea-45c9-a3ea-a4c86
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
-"# vida-doce-site" 

@@ -3,11 +3,32 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage });
+
 const db = new Database("vidadoce.db");
+// ... (rest of the DB init stays the same)
 
 // Initialize Database
 db.exec(`
@@ -67,11 +88,19 @@ if (categoryCount.count === 0) {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = 3000;
 
   app.use(express.json());
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // API Routes
+  app.post("/api/upload", upload.single("image"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+    res.json({ success: true, url: `/uploads/${req.file.filename}` });
+  });
+
   app.get("/api/categories", (req, res) => {
     const categories = db.prepare("SELECT * FROM categories").all();
     res.json(categories);
@@ -133,8 +162,8 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
- });
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
 startServer();

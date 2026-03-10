@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -13,7 +13,9 @@ import {
   X,
   Save,
   Grid,
-  List as ListIcon
+  List as ListIcon,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Category, Product, AuthState } from './types';
@@ -38,6 +40,8 @@ export default function App() {
     category_id: 1,
     image_url: ''
   });
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -55,6 +59,30 @@ export default function App() {
       setCategories(catData);
     } catch (error) {
       console.error('Error fetching data:', error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProductForm(prev => ({ ...prev, image_url: data.url }));
+      }
+    } catch (error) {
+      alert('Erro ao fazer upload da imagem');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -126,9 +154,16 @@ export default function App() {
   }, [products, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative overflow-hidden">
+      {/* Background Blobs */}
+      <div className="blob-bg">
+        <div className="blob w-[500px] h-[500px] bg-sweet-pink/30 -top-20 -left-20 animate-pulse" />
+        <div className="blob w-[400px] h-[400px] bg-sweet-yellow/20 top-1/2 -right-20 animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="blob w-[300px] h-[300px] bg-accent/20 bottom-0 left-1/4 animate-pulse" style={{ animationDelay: '4s' }} />
+      </div>
+
       {/* Navbar */}
-      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200 shadow-sm">
+      <nav className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <div className="flex items-center gap-2">
@@ -144,7 +179,7 @@ export default function App() {
             <div className="hidden md:flex items-center space-x-8">
               <button 
                 onClick={() => setSelectedCategory(null)}
-                className={`text-sm font-medium transition-colors ${!selectedCategory ? 'text-primary' : 'text-stone-500 hover:text-stone-900'}`}
+                className={`text-sm font-bold uppercase tracking-wider transition-all ${!selectedCategory ? 'text-primary border-b-2 border-primary pb-1' : 'text-stone-500 hover:text-stone-900'}`}
               >
                 Todos
               </button>
@@ -152,7 +187,7 @@ export default function App() {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`text-sm font-medium transition-colors ${selectedCategory === cat.id ? 'text-primary' : 'text-stone-500 hover:text-stone-900'}`}
+                  className={`text-sm font-bold uppercase tracking-wider transition-all ${selectedCategory === cat.id ? 'text-primary border-b-2 border-primary pb-1' : 'text-stone-500 hover:text-stone-900'}`}
                 >
                   {cat.name}
                 </button>
@@ -183,7 +218,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={() => setShowLoginModal(true)}
-                  className="flex items-center gap-2 text-stone-600 hover:text-primary transition-colors font-medium text-sm"
+                  className="flex items-center gap-2 text-stone-600 hover:text-primary transition-colors font-medium text-sm bg-white/50 px-4 py-2 rounded-full border border-white/20 shadow-sm"
                 >
                   <LogIn size={18} /> Admin
                 </button>
@@ -194,21 +229,29 @@ export default function App() {
       </nav>
 
       {/* Hero / Search */}
-      <section className="bg-stone-100 py-12 px-4">
-        <div className="max-w-3xl mx-auto text-center space-y-6">
+      <section className="py-16 px-4 relative">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-block px-4 py-1.5 rounded-full bg-sweet-pink/10 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-4"
+          >
+            Qualidade & Tradição
+          </motion.div>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-serif italic text-stone-900"
+            className="text-5xl md:text-7xl font-serif italic text-stone-900 leading-tight"
           >
-            O sabor da felicidade em cada detalhe.
+            O sabor da felicidade <br />
+            <span className="text-primary">em cada detalhe.</span>
           </motion.h2>
-          <div className="relative max-w-xl mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+          <div className="relative max-w-2xl mx-auto">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-stone-400" size={24} />
             <input 
               type="text" 
-              placeholder="Buscar por nome ou código..."
-              className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+              placeholder="O que você está procurando hoje?"
+              className="w-full pl-16 pr-6 py-6 bg-white/80 backdrop-blur-md rounded-3xl border border-white/20 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all shadow-xl text-lg"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -217,10 +260,10 @@ export default function App() {
       </section>
 
       {/* Mobile Categories */}
-      <div className="md:hidden flex overflow-x-auto py-4 px-4 gap-2 no-scrollbar border-b border-stone-100">
+      <div className="md:hidden flex overflow-x-auto py-4 px-4 gap-2 no-scrollbar border-b border-stone-100 bg-white/30 backdrop-blur-sm">
         <button 
           onClick={() => setSelectedCategory(null)}
-          className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${!selectedCategory ? 'bg-primary text-white shadow-md' : 'bg-stone-200 text-stone-600'}`}
+          className={`whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all ${!selectedCategory ? 'bg-primary text-white shadow-lg scale-105' : 'bg-white/50 text-stone-600 border border-white/20'}`}
         >
           Todos
         </button>
@@ -228,7 +271,7 @@ export default function App() {
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${selectedCategory === cat.id ? 'bg-primary text-white shadow-md' : 'bg-stone-200 text-stone-600'}`}
+            className={`whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all ${selectedCategory === cat.id ? 'bg-primary text-white shadow-lg scale-105' : 'bg-white/50 text-stone-600 border border-white/20'}`}
           >
             {cat.name}
           </button>
@@ -237,16 +280,16 @@ export default function App() {
 
       {/* Product Grid */}
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex justify-between items-end mb-12">
           <div>
-            <h3 className="text-2xl font-bold text-stone-900">
-              {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Todos os Produtos'}
+            <h3 className="text-3xl font-bold text-stone-900 flex items-center gap-3">
+              {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Catálogo Completo'}
+              <span className="text-sm font-normal text-stone-400 bg-stone-100 px-3 py-1 rounded-full">{filteredProducts.length}</span>
             </h3>
-            <p className="text-stone-500 text-sm">{filteredProducts.length} itens encontrados</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
           <AnimatePresence mode="popLayout">
             {filteredProducts.map((product) => (
               <motion.div
@@ -255,56 +298,59 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="group relative bg-white rounded-3xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-xl transition-all duration-300"
+                className="group relative bg-white/60 backdrop-blur-sm rounded-[2.5rem] overflow-hidden border border-white/40 shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
               >
                 <div className="aspect-square overflow-hidden bg-stone-50 relative">
                   <img 
                     src={product.image_url || 'https://picsum.photos/seed/candy/400/400'} 
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-bold text-stone-500 uppercase tracking-tight shadow-sm border border-stone-100">
-                      Cód: {product.code}
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-stone-600 uppercase tracking-widest shadow-sm border border-white/20">
+                      #{product.code}
                     </span>
                   </div>
                   {auth.isLoggedIn && (
-                    <div className="absolute top-3 right-3 flex gap-2">
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button 
                         onClick={() => {
                           setEditingProduct(product);
                           setProductForm(product);
                           setShowProductModal(true);
                         }}
-                        className="p-2 bg-white/90 backdrop-blur rounded-full text-stone-600 hover:text-primary shadow-sm border border-stone-100 transition-colors"
+                        className="p-3 bg-white/90 backdrop-blur rounded-2xl text-stone-600 hover:text-primary shadow-lg border border-white/20 transition-all hover:scale-110"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={18} />
                       </button>
                       <button 
                         onClick={() => handleDeleteProduct(product.id)}
-                        className="p-2 bg-white/90 backdrop-blur rounded-full text-stone-600 hover:text-red-500 shadow-sm border border-stone-100 transition-colors"
+                        className="p-3 bg-white/90 backdrop-blur rounded-2xl text-stone-600 hover:text-red-500 shadow-lg border border-white/20 transition-all hover:scale-110"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   )}
                 </div>
-                <div className="p-6">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{product.category_name}</p>
-                  <h4 className="text-lg font-semibold text-stone-900 mb-4 line-clamp-2 min-h-[3.5rem] leading-tight">
+                <div className="p-8">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{product.category_name}</p>
+                  </div>
+                  <h4 className="text-xl font-bold text-stone-900 mb-6 line-clamp-2 min-h-[3.5rem] leading-tight group-hover:text-primary transition-colors">
                     {product.name}
                   </h4>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center bg-stone-50/50 p-4 rounded-3xl border border-stone-100">
                     <div>
-                      <p className="text-[10px] text-stone-400 uppercase font-bold tracking-tighter">Preço Unitário</p>
-                      <p className="text-2xl font-bold text-stone-900">
-                        <span className="text-sm font-medium mr-1">R$</span>
+                      <p className="text-[10px] text-stone-400 uppercase font-bold tracking-widest mb-0.5">Valor Unitário</p>
+                      <p className="text-2xl font-black text-stone-900">
+                        <span className="text-sm font-bold mr-1 text-primary">R$</span>
                         {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      <ChevronRight size={20} />
+                    <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-stone-300 group-hover:bg-primary group-hover:text-white transition-all duration-300 group-hover:rotate-12">
+                      <ChevronRight size={24} />
                     </div>
                   </div>
                 </div>
@@ -315,40 +361,59 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-stone-900 text-stone-400 py-12 px-4 mt-auto">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 candy-gradient rounded-lg flex items-center justify-center text-white">
-                <Candy size={18} />
+      <footer className="bg-stone-900 text-stone-400 py-20 px-4 mt-auto relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 candy-gradient" />
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16 relative z-10">
+          <div className="space-y-6 col-span-1 md:col-span-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 candy-gradient rounded-2xl flex items-center justify-center text-white shadow-xl">
+                <Candy size={28} />
               </div>
-              <h1 className="text-lg font-bold tracking-tight text-white">VIDA DOCE</h1>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-white">VIDA DOCE</h1>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em]">Distribuidora</p>
+              </div>
             </div>
-            <p className="text-sm leading-relaxed">
-              Sua distribuidora de confiança para balas, doces e bomboniere. 
-              Qualidade e preço justo para o seu negócio.
+            <p className="text-base leading-relaxed max-w-md">
+              Transformando momentos simples em experiências inesquecíveis. 
+              Somos a maior distribuidora de bomboniere da região, levando doçura 
+              para o seu negócio com qualidade e compromisso.
             </p>
           </div>
           <div>
-            <h5 className="text-white font-bold mb-4 uppercase text-xs tracking-widest">Categorias</h5>
-            <ul className="space-y-2 text-sm">
+            <h5 className="text-white font-bold mb-6 uppercase text-xs tracking-[0.2em]">Navegação</h5>
+            <ul className="space-y-4 text-sm">
+              <li>
+                <button onClick={() => setSelectedCategory(null)} className="hover:text-primary transition-colors flex items-center gap-2">
+                  <ChevronRight size={14} /> Todos os Produtos
+                </button>
+              </li>
               {categories.map(cat => (
                 <li key={cat.id}>
-                  <button onClick={() => setSelectedCategory(cat.id)} className="hover:text-white transition-colors">
-                    {cat.name}
+                  <button onClick={() => setSelectedCategory(cat.id)} className="hover:text-primary transition-colors flex items-center gap-2">
+                    <ChevronRight size={14} /> {cat.name}
                   </button>
                 </li>
               ))}
             </ul>
           </div>
           <div>
-            <h5 className="text-white font-bold mb-4 uppercase text-xs tracking-widest">Contato</h5>
-            <p className="text-sm">Atendimento exclusivo para revendedores e lojistas.</p>
-            <p className="text-sm mt-2 font-bold text-white">vidadocedistribuidora@email.com</p>
+            <h5 className="text-white font-bold mb-6 uppercase text-xs tracking-[0.2em]">Contato Direto</h5>
+            <div className="space-y-4">
+              <p className="text-sm">Fale com nosso time comercial:</p>
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                <p className="text-xs text-stone-500 uppercase font-bold tracking-widest mb-1">E-mail</p>
+                <p className="text-sm font-bold text-white">vidadocedistribuidora@email.com</p>
+              </div>
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                <p className="text-xs text-stone-500 uppercase font-bold tracking-widest mb-1">Localização</p>
+                <p className="text-sm font-bold text-white">Atendimento em toda a região</p>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto pt-12 mt-12 border-t border-stone-800 text-center text-[10px] uppercase tracking-[0.2em]">
-          © 2024 Vida Doce Distribuidora • Todos os direitos reservados
+        <div className="max-w-7xl mx-auto pt-16 mt-16 border-t border-white/5 text-center text-[10px] uppercase tracking-[0.4em] font-bold">
+          © 2024 Vida Doce Distribuidora • Criado com Amor & Açúcar
         </div>
       </footer>
 
@@ -361,53 +426,56 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowLoginModal(false)}
-              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-stone-900/80 backdrop-blur-md"
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl"
+              className="relative bg-white rounded-[3rem] p-10 w-full max-w-md shadow-2xl overflow-hidden"
             >
+              <div className="absolute top-0 left-0 w-full h-2 candy-gradient" />
               <button 
                 onClick={() => setShowLoginModal(false)}
-                className="absolute top-4 right-4 text-stone-400 hover:text-stone-900"
+                className="absolute top-6 right-6 text-stone-400 hover:text-stone-900 transition-colors"
               >
-                <X size={24} />
+                <X size={28} />
               </button>
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 candy-gradient rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
-                  <LogIn size={32} />
+              <div className="text-center mb-10">
+                <div className="w-20 h-20 candy-gradient rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-2xl rotate-3">
+                  <LogIn size={40} />
                 </div>
-                <h3 className="text-2xl font-bold text-stone-900">Acesso Restrito</h3>
-                <p className="text-stone-500 text-sm">Entre com suas credenciais de administrador</p>
+                <h3 className="text-3xl font-black text-stone-900 mb-2">Painel Admin</h3>
+                <p className="text-stone-500 text-sm font-medium">Área restrita para gerenciamento</p>
               </div>
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">E-mail</label>
+                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">E-mail Corporativo</label>
                   <input 
                     type="email" 
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    placeholder="admin@vidadoce.com.br"
+                    className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
                     value={loginForm.email}
                     onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">Senha</label>
+                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Senha de Acesso</label>
                   <input 
                     type="password" 
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    placeholder="••••••••"
+                    className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                   />
                 </div>
                 <button 
                   type="submit"
-                  className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold hover:bg-stone-800 transition-all shadow-lg"
+                  className="w-full py-5 bg-stone-900 text-white rounded-2xl font-black text-lg hover:bg-stone-800 transition-all shadow-xl hover:shadow-2xl active:scale-[0.98]"
                 >
-                  Entrar no Sistema
+                  Acessar Sistema
                 </button>
               </form>
             </motion.div>
@@ -424,62 +492,75 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowProductModal(false)}
-              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-stone-900/80 backdrop-blur-md"
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="relative bg-white rounded-[3rem] p-10 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
             >
+              <div className="absolute top-0 left-0 w-full h-2 candy-gradient" />
               <button 
                 onClick={() => setShowProductModal(false)}
-                className="absolute top-4 right-4 text-stone-400 hover:text-stone-900"
+                className="absolute top-6 right-6 text-stone-400 hover:text-stone-900 transition-colors"
               >
-                <X size={24} />
+                <X size={28} />
               </button>
-              <h3 className="text-2xl font-bold text-stone-900 mb-6">
-                {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-              </h3>
-              <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-14 h-14 bg-stone-100 rounded-2xl flex items-center justify-center text-stone-900">
+                  {editingProduct ? <Edit2 size={28} /> : <Plus size={28} />}
+                </div>
+                <div>
+                  <h3 className="text-3xl font-black text-stone-900">
+                    {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+                  </h3>
+                  <p className="text-stone-500 text-sm font-medium">Preencha os detalhes do item abaixo</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">Nome do Produto</label>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Nome do Produto</label>
                     <input 
                       type="text" 
                       required
-                      className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      placeholder="Ex: Bala de Goma 500g"
+                      className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
                       value={productForm.name}
                       onChange={(e) => setProductForm({...productForm, name: e.target.value})}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">Código</label>
-                    <input 
-                      type="text" 
-                      required
-                      className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      value={productForm.code}
-                      onChange={(e) => setProductForm({...productForm, code: e.target.value})}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Código</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="00.000"
+                        className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
+                        value={productForm.code}
+                        onChange={(e) => setProductForm({...productForm, code: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Preço (R$)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        required
+                        placeholder="0,00"
+                        className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
+                        value={productForm.price}
+                        onChange={(e) => setProductForm({...productForm, price: parseFloat(e.target.value)})}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">Preço (R$)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      required
-                      className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      value={productForm.price}
-                      onChange={(e) => setProductForm({...productForm, price: parseFloat(e.target.value)})}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">Categoria</label>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Categoria</label>
                     <select 
-                      className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all bg-white"
+                      className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50 appearance-none"
                       value={productForm.category_id}
                       onChange={(e) => setProductForm({...productForm, category_id: parseInt(e.target.value)})}
                     >
@@ -488,22 +569,57 @@ export default function App() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">URL da Imagem</label>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Imagem do Produto</label>
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="group relative aspect-video rounded-3xl border-2 border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all overflow-hidden"
+                    >
+                      {productForm.image_url ? (
+                        <>
+                          <img 
+                            src={productForm.image_url} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-2">
+                            <Upload size={20} /> Alterar Foto
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center space-y-2 p-6">
+                          <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-stone-400 mx-auto group-hover:text-primary transition-colors">
+                            <Upload size={24} />
+                          </div>
+                          <p className="text-sm font-bold text-stone-500 group-hover:text-primary">Clique para fazer upload</p>
+                          <p className="text-[10px] text-stone-400 uppercase tracking-widest">PNG, JPG ou WEBP</p>
+                        </div>
+                      )}
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+                          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </div>
                     <input 
-                      type="text" 
-                      placeholder="https://..."
-                      className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      value={productForm.image_url}
-                      onChange={(e) => setProductForm({...productForm, image_url: e.target.value})}
+                      type="file" 
+                      ref={fileInputRef}
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleFileUpload}
                     />
                   </div>
+                  
                   <div className="pt-4">
                     <button 
                       type="submit"
-                      className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg flex items-center justify-center gap-2"
+                      disabled={isUploading}
+                      className="w-full py-5 bg-primary text-white rounded-2xl font-black text-lg hover:bg-primary/90 transition-all shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Save size={20} /> Salvar Alterações
+                      <Save size={24} /> {editingProduct ? 'Atualizar Produto' : 'Cadastrar Produto'}
                     </button>
                   </div>
                 </div>

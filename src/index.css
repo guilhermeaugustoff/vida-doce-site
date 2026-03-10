@@ -14,6 +14,9 @@
 
 body {
   @apply bg-stone-50 text-stone-900;
+  background-image: 
+    radial-gradient(circle at 2px 2px, rgba(255, 107, 107, 0.05) 1px, transparent 0);
+  background-size: 40px 40px;
 }
 
 .glass-card {
@@ -22,4 +25,26 @@ body {
 
 .candy-gradient {
   background: linear-gradient(135deg, #ff9ff3 0%, #feca57 100%);
+}
+
+.candy-pattern {
+  background-color: #fef2f2;
+  background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #fef2f2 40px ), repeating-linear-gradient( #fee2e255, #fee2e2 );
+}
+
+.blob-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  opacity: 0.4;
+}
+
+.blob {
+  position: absolute;
+  filter: blur(80px);
+  border-radius: 50%;
 }
