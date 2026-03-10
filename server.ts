@@ -41,10 +41,17 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT,
     name TEXT NOT NULL,
+    description TEXT,
     price REAL NOT NULL,
-    image_url TEXT,
     category_id INTEGER,
     FOREIGN KEY (category_id) REFERENCES categories(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS product_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
 `);
 
@@ -56,23 +63,36 @@ if (categoryCount.count === 0) {
   categories.forEach(cat => insertCategory.run(cat));
 
   // Seed some initial products
-  const insertProduct = db.prepare("INSERT INTO products (code, name, price, image_url, category_id) VALUES (?, ?, ?, ?, ?)");
+  const insertProduct = db.prepare("INSERT INTO products (code, name, description, price, category_id) VALUES (?, ?, ?, ?, ?)");
+  const insertImage = db.prepare("INSERT INTO product_images (product_id, url) VALUES (?, ?)");
   
   // Balas
-  insertProduct.run("9.500", "Bala Bolete c/ 140", 0.09, "https://picsum.photos/seed/candy1/400/400", 1);
-  insertProduct.run("5.750", "Bala Chita c/ 120", 0.07, "https://picsum.photos/seed/candy2/400/400", 1);
+  let info = insertProduct.run("9.500", "Bala Bolete c/ 140", "A clássica bala que vira chiclete. Sabor tutti-frutti.", 0.09, 1);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/candy1/400/400");
+  
+  info = insertProduct.run("5.750", "Bala Chita c/ 120", "Bala mastigável sabor abacaxi, um clássico das festas.", 0.07, 1);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/candy2/400/400");
   
   // Chicletes
-  insertProduct.run("7.000", "Chiclete Big Big c/ 100", 0.09, "https://picsum.photos/seed/gum1/400/400", 2);
-  insertProduct.run("12.90", "Chiclete Bubballo c/ 60", 0.28, "https://picsum.photos/seed/gum2/400/400", 2);
+  info = insertProduct.run("7.000", "Chiclete Big Big c/ 100", "Chiclete de bola sabor morango.", 0.09, 2);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/gum1/400/400");
+  
+  info = insertProduct.run("12.90", "Chiclete Bubballo c/ 60", "Chiclete recheado com calda líquida.", 0.28, 2);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/gum2/400/400");
   
   // Chocolates
-  insertProduct.run("70.80", "Chocolate Kit Kat 24 x 45 gr", 3.78, "https://picsum.photos/seed/chocolate1/400/400", 3);
-  insertProduct.run("58.50", "Chocolate Snickers c/ 20", 3.74, "https://picsum.photos/seed/chocolate2/400/400", 3);
+  info = insertProduct.run("70.80", "Chocolate Kit Kat 24 x 45 gr", "Wafer recheado coberto com chocolate ao leite.", 3.78, 3);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/chocolate1/400/400");
+  
+  info = insertProduct.run("58.50", "Chocolate Snickers c/ 20", "Barra de chocolate com amendoim, caramelo e nougat.", 3.74, 3);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/chocolate2/400/400");
   
   // Doces
-  insertProduct.run("15.73", "Doce Paçoca Aritana c/ 50", 0.42, "https://picsum.photos/seed/sweet1/400/400", 4);
-  insertProduct.run("15.50", "Doce Bananada c/ 20 Cabral", 1.17, "https://picsum.photos/seed/sweet2/400/400", 4);
+  info = insertProduct.run("15.73", "Doce Paçoca Aritana c/ 50", "Paçoca rolha tradicional de amendoim.", 0.42, 4);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/sweet1/400/400");
+  
+  info = insertProduct.run("15.50", "Doce Bananada c/ 20 Cabral", "Doce de banana tradicional.", 1.17, 4);
+  insertImage.run(info.lastInsertRowid, "https://picsum.photos/seed/sweet2/400/400");
   insertProduct.run("18.00", "Doce Cocada Ar Pr/Br/Cond c 20", 1.24, "https://picsum.photos/seed/sweet3/400/400", 4);
   insertProduct.run("17.00", "Doce de Leite c 20 Quad/ Los/ Bat", 1.17, "https://picsum.photos/seed/sweet4/400/400", 4);
 
@@ -111,8 +131,14 @@ async function startServer() {
       SELECT p.*, c.name as category_name 
       FROM products p 
       JOIN categories c ON p.category_id = c.id
-    `).all();
-    res.json(products);
+    `).all() as any[];
+
+    const productsWithImages = products.map(p => {
+      const images = db.prepare("SELECT url FROM product_images WHERE product_id = ?").all(p.id) as { url: string }[];
+      return { ...p, images: images.map(img => img.url) };
+    });
+
+    res.json(productsWithImages);
   });
 
   // Admin Auth (Simple for demo)
@@ -127,17 +153,30 @@ async function startServer() {
 
   // Protected Routes (CRUD)
   app.post("/api/products", (req, res) => {
-    const { code, name, price, image_url, category_id } = req.body;
-    const info = db.prepare("INSERT INTO products (code, name, price, image_url, category_id) VALUES (?, ?, ?, ?, ?)")
-      .run(code, name, price, image_url, category_id);
-    res.json({ id: info.lastInsertRowid });
+    const { code, name, description, price, category_id, images } = req.body;
+    const info = db.prepare("INSERT INTO products (code, name, description, price, category_id) VALUES (?, ?, ?, ?, ?)")
+      .run(code, name, description, price, category_id);
+    
+    const productId = info.lastInsertRowid;
+    if (images && Array.isArray(images)) {
+      const insertImage = db.prepare("INSERT INTO product_images (product_id, url) VALUES (?, ?)");
+      images.forEach(url => insertImage.run(productId, url));
+    }
+    res.json({ id: productId });
   });
 
   app.put("/api/products/:id", (req, res) => {
     const { id } = req.params;
-    const { code, name, price, image_url, category_id } = req.body;
-    db.prepare("UPDATE products SET code = ?, name = ?, price = ?, image_url = ?, category_id = ? WHERE id = ?")
-      .run(code, name, price, image_url, category_id, id);
+    const { code, name, description, price, category_id, images } = req.body;
+    db.prepare("UPDATE products SET code = ?, name = ?, description = ?, price = ?, category_id = ? WHERE id = ?")
+      .run(code, name, description, price, category_id, id);
+    
+    // Update images: delete old ones and insert new ones
+    db.prepare("DELETE FROM product_images WHERE product_id = ?").run(id);
+    if (images && Array.isArray(images)) {
+      const insertImage = db.prepare("INSERT INTO product_images (product_id, url) VALUES (?, ?)");
+      images.forEach(url => insertImage.run(id, url));
+    }
     res.json({ success: true });
   });
 
