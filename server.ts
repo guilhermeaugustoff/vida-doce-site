@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 
 // Supabase Configuration
 const supabaseUrl = process.env.SUPABASE_URL || "https://javacpahgxvvjcokcupe.supabase.co";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+const supabaseKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphdmFjcGFoZ3h2dmpjb2tjdXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNTU0MzIsImV4cCI6MjA4ODgzMTQzMn0.INEwejs0NRNSS5H3QDnijVfTaTb5n-1fku6b5x6MltY";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Ensure uploads directory exists
