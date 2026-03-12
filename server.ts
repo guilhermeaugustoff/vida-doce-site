@@ -71,30 +71,28 @@ async function startServer() {
     res.json(data);
   });
 
-  app.get("/api/products", async (req, res) => {
-    const { data: products, error: prodError } = await supabase
-      .from("products")
-      .select(`
-        *,
-        categories (name)
-      `);
+  app.post("/api/products", async (req, res) => {
+  const { code, name, description, price, unit_cost, category_id, images } = req.body;
 
-    if (prodError) return res.status(500).json(prodError);
+  const { data: product, error } = await supabase
+    .from("products")
+    .insert([{ code, name, description, price, unit_cost, category_id }])
+    .select()
+    .single();
 
-    const { data: images, error: imgError } = await supabase
-      .from("product_images")
-      .select("*");
+  if (error) return res.status(500).json(error);
 
-    if (imgError) return res.status(500).json(imgError);
-
-    const productsWithImages = products.map(p => ({
-      ...p,
-      category_name: p.categories?.name,
-      images: images.filter(img => img.product_id === p.id).map(img => img.url)
+  if (images && images.length > 0) {
+    const imageInserts = images.map(url => ({
+      product_id: product.id,
+      url
     }));
 
-    res.json(productsWithImages);
-  });
+    await supabase.from("product_images").insert(imageInserts);
+  }
+
+  res.json({ success: true });
+});
 
   // Admin Auth
   app.post("/api/login", (req, res) => {
@@ -131,26 +129,29 @@ async function startServer() {
   });
 
   app.put("/api/products/:id", async (req, res) => {
-    const { id } = req.params;
-    const { code, name, description, price, category_id, images } = req.body;
+  const { id } = req.params;
+  const { code, name, description, price, unit_cost, category_id, images } = req.body;
 
-    const { error: prodError } = await supabase
-      .from("products")
-      .update({ code, name, description, price, category_id })
-      .eq("id", id);
+  const { error } = await supabase
+    .from("products")
+    .update({ code, name, description, price, unit_cost, category_id })
+    .eq("id", id);
 
-    if (prodError) return res.status(500).json(prodError);
-    
-    // Update images: delete old ones and insert new ones
-    await supabase.from("product_images").delete().eq("product_id", id);
-    
-    if (images && Array.isArray(images) && images.length > 0) {
-      const imageInserts = images.map(url => ({ product_id: id, url }));
-      await supabase.from("product_images").insert(imageInserts);
-    }
+  if (error) return res.status(500).json(error);
 
-    res.json({ success: true });
-  });
+  await supabase.from("product_images").delete().eq("product_id", id);
+
+  if (images && images.length > 0) {
+    const imageInserts = images.map(url => ({
+      product_id: id,
+      url
+    }));
+
+    await supabase.from("product_images").insert(imageInserts);
+  }
+
+  res.json({ success: true });
+});
 
   app.delete("/api/products/:id", async (req, res) => {
     const { id } = req.params;

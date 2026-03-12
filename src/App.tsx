@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Category, Product, AuthState, CartItem } from './types';
 
 export default function App() {
+  const [isAdmin, setIsAdmin] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -110,11 +111,12 @@ export default function App() {
         body: JSON.stringify(loginForm)
       });
       const data = await res.json();
-      if (data.success) {
-        setAuth({ isLoggedIn: true, token: data.token });
-        localStorage.setItem('adminToken', data.token);
-        setShowLoginModal(false);
-      } else {
+     if (data.success) {
+  setAuth({ isLoggedIn: true, token: data.token });
+  setIsAdmin(true);
+  localStorage.setItem('adminToken', data.token);
+  setShowLoginModal(false);
+} else {
         alert(data.message);
       }
     } catch (error) {
@@ -455,6 +457,16 @@ export default function App() {
                         <span className="text-sm font-bold mr-1 text-primary">R$</span>
                         {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
+                      {isAdmin && product.unit_cost && (
+                       <p className="text-sm text-red-600 font-semibold mt-1">
+                        Custo unitário: R$ {product.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                       )}
+                      {isAdmin && product.unit_cost && (
+                       <p className="text-xs text-green-600">
+                        Lucro: R$ {(product.price - product.unit_cost).toFixed(2)}
+                       </p>
+                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Ver Produto</span>
