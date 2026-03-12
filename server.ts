@@ -1,13 +1,21 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Database from "better-sqlite3";
+import { createClient } from "@supabase/supabase-js";
 import path from "path";
 import { fileURLToPath } from "url";
 import multer from "multer";
 import fs from "fs";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Supabase Configuration
+const supabaseUrl = process.env.SUPABASE_URL || "https://javacpahgxvvjcokcupe.supabase.co";
+const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, "uploads");
@@ -27,65 +35,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-const db = new Database("vidadoce.db");
-// ... (rest of the DB init stays the same)
-
-// Initialize Database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    image_url TEXT,
-    category_id INTEGER,
-    FOREIGN KEY (category_id) REFERENCES categories(id)
-  );
-`);
-
-// Seed initial categories if empty
-const categoryCount = db.prepare("SELECT count(*) as count FROM categories").get() as { count: number };
-if (categoryCount.count === 0) {
-  const categories = ["Balas", "Chicletes", "Chocolates", "Doces", "Salgadinhos", "Bebidas", "Outros"];
-  const insertCategory = db.prepare("INSERT INTO categories (name) VALUES (?)");
-  categories.forEach(cat => insertCategory.run(cat));
-
-  // Seed some initial products
-  const insertProduct = db.prepare("INSERT INTO products (code, name, price, image_url, category_id) VALUES (?, ?, ?, ?, ?)");
-  
-  // Balas
-  insertProduct.run("9.500", "Bala Bolete c/ 140", 0.09, "https://picsum.photos/seed/candy1/400/400", 1);
-  insertProduct.run("5.750", "Bala Chita c/ 120", 0.07, "https://picsum.photos/seed/candy2/400/400", 1);
-  
-  // Chicletes
-  insertProduct.run("7.000", "Chiclete Big Big c/ 100", 0.09, "https://picsum.photos/seed/gum1/400/400", 2);
-  insertProduct.run("12.90", "Chiclete Bubballo c/ 60", 0.28, "https://picsum.photos/seed/gum2/400/400", 2);
-  
-  // Chocolates
-  insertProduct.run("70.80", "Chocolate Kit Kat 24 x 45 gr", 3.78, "https://picsum.photos/seed/chocolate1/400/400", 3);
-  insertProduct.run("58.50", "Chocolate Snickers c/ 20", 3.74, "https://picsum.photos/seed/chocolate2/400/400", 3);
-  
-  // Doces
-  insertProduct.run("15.73", "Doce Paçoca Aritana c/ 50", 0.42, "https://picsum.photos/seed/sweet1/400/400", 4);
-  insertProduct.run("15.50", "Doce Bananada c/ 20 Cabral", 1.17, "https://picsum.photos/seed/sweet2/400/400", 4);
-  insertProduct.run("18.00", "Doce Cocada Ar Pr/Br/Cond c 20", 1.24, "https://picsum.photos/seed/sweet3/400/400", 4);
-  insertProduct.run("17.00", "Doce de Leite c 20 Quad/ Los/ Bat", 1.17, "https://picsum.photos/seed/sweet4/400/400", 4);
-
-  // Salgadinhos
-  insertProduct.run("29.28", "Salgadinho Flinkitos c/ 20 100 gr.", 1.91, "https://picsum.photos/seed/snack1/400/400", 5);
-  insertProduct.run("10.50", "Salgadinho Flinkitos 70 gr c/10", 1.37, "https://picsum.photos/seed/snack2/400/400", 5);
-  insertProduct.run("19.68", "Salgadinho Aritana triomax 135 gr", 2.56, "https://picsum.photos/seed/snack3/400/400", 5);
-
-  // Bebidas
-  insertProduct.run("27.000", "Achocolatado c/ 27 unid. 200ml Cemil", 1.30, "https://picsum.photos/seed/drink1/400/400", 6);
-  insertProduct.run("14.00", "Suco Fresh c/ 15 faz 2 lt", 1.26, "https://picsum.photos/seed/drink2/400/400", 6);
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -94,31 +43,51 @@ async function startServer() {
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // API Routes
-  app.post("/api/upload", upload.single("image"), (req, res) => {
+  app.post("/api/upload", upload.single("image"), (req: any, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
     res.json({ success: true, url: `/uploads/${req.file.filename}` });
   });
 
-  app.get("/api/categories", (req, res) => {
-    const categories = db.prepare("SELECT * FROM categories").all();
-    res.json(categories);
+  app.get("/api/categories", async (req, res) => {
+    const { data, error } = await supabase.from("categories").select("*");
+    if (error) return res.status(500).json(error);
+    res.json(data);
   });
 
-  app.get("/api/products", (req, res) => {
-    const products = db.prepare(`
-      SELECT p.*, c.name as category_name 
-      FROM products p 
-      JOIN categories c ON p.category_id = c.id
-    `).all();
-    res.json(products);
+  app.get("/api/products", async (req, res) => {
+    const { data: products, error: prodError } = await supabase
+      .from("products")
+      .select(`
+        *,
+        categories (name)
+      `);
+
+    if (prodError) return res.status(500).json(prodError);
+
+    const { data: images, error: imgError } = await supabase
+      .from("product_images")
+      .select("*");
+
+    if (imgError) return res.status(500).json(imgError);
+
+    const productsWithImages = products.map(p => ({
+      ...p,
+      category_name: p.categories?.name,
+      images: images.filter(img => img.product_id === p.id).map(img => img.url)
+    }));
+
+    res.json(productsWithImages);
   });
 
-  // Admin Auth (Simple for demo)
+  // Admin Auth
   app.post("/api/login", (req, res) => {
     const { email, password } = req.body;
-    if (email === "admin@admin.com.br" && password === "admin1010") {
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@admin.com.br";
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin1010";
+
+    if (email === adminEmail && password === adminPassword) {
       res.json({ success: true, token: "fake-jwt-token-admin" });
     } else {
       res.status(401).json({ success: false, message: "Credenciais inválidas" });
@@ -126,24 +95,52 @@ async function startServer() {
   });
 
   // Protected Routes (CRUD)
-  app.post("/api/products", (req, res) => {
-    const { code, name, price, image_url, category_id } = req.body;
-    const info = db.prepare("INSERT INTO products (code, name, price, image_url, category_id) VALUES (?, ?, ?, ?, ?)")
-      .run(code, name, price, image_url, category_id);
-    res.json({ id: info.lastInsertRowid });
+  app.post("/api/products", async (req, res) => {
+    const { code, name, description, price, category_id, images } = req.body;
+    
+    const { data: product, error: prodError } = await supabase
+      .from("products")
+      .insert([{ code, name, description, price, category_id }])
+      .select()
+      .single();
+
+    if (prodError) return res.status(500).json(prodError);
+
+    if (images && Array.isArray(images) && images.length > 0) {
+      const imageInserts = images.map(url => ({ product_id: product.id, url }));
+      const { error: imgError } = await supabase.from("product_images").insert(imageInserts);
+      if (imgError) console.error("Error inserting images:", imgError);
+    }
+
+    res.json({ id: product.id });
   });
 
-  app.put("/api/products/:id", (req, res) => {
+  app.put("/api/products/:id", async (req, res) => {
     const { id } = req.params;
-    const { code, name, price, image_url, category_id } = req.body;
-    db.prepare("UPDATE products SET code = ?, name = ?, price = ?, image_url = ?, category_id = ? WHERE id = ?")
-      .run(code, name, price, image_url, category_id, id);
+    const { code, name, description, price, category_id, images } = req.body;
+
+    const { error: prodError } = await supabase
+      .from("products")
+      .update({ code, name, description, price, category_id })
+      .eq("id", id);
+
+    if (prodError) return res.status(500).json(prodError);
+    
+    // Update images: delete old ones and insert new ones
+    await supabase.from("product_images").delete().eq("product_id", id);
+    
+    if (images && Array.isArray(images) && images.length > 0) {
+      const imageInserts = images.map(url => ({ product_id: id, url }));
+      await supabase.from("product_images").insert(imageInserts);
+    }
+
     res.json({ success: true });
   });
 
-  app.delete("/api/products/:id", (req, res) => {
+  app.delete("/api/products/:id", async (req, res) => {
     const { id } = req.params;
-    db.prepare("DELETE FROM products WHERE id = ?").run(id);
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) return res.status(500).json(error);
     res.json({ success: true });
   });
 

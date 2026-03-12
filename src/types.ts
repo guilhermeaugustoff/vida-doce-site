@@ -7,10 +7,15 @@ export interface Product {
   id: number;
   code: string;
   name: string;
+  description: string;
   price: number;
-  image_url: string;
+  images: string[];
   category_id: number;
   category_name?: string;
+}
+
+export interface CartItem extends Product {
+  quantity: number;
 }
 
 export interface AuthState {
