@@ -95,9 +95,11 @@ export default function App() {
           ...prev, 
           images: [...(prev.images || []), data.url] 
         }));
+      } else {
+        alert(`Erro ao fazer upload: ${data.error || 'Erro desconhecido'}`);
       }
     } catch (error) {
-      alert('Erro ao fazer upload da imagem');
+      alert('Erro de conexão ao fazer upload da imagem');
     } finally {
       setIsUploading(false);
     }
@@ -232,15 +234,20 @@ export default function App() {
     setCustomerAddress('');
   };
 
+  const getCategoryColor = (id: number) => {
+    const colors = [
+      'bg-primary/10 text-primary',    // Red
+      'bg-secondary/10 text-secondary', // Blue
+      'bg-purple/10 text-purple',      // Purple
+      'bg-accent/10 text-accent',      // Green
+      'bg-sweet-pink/10 text-sweet-pink',
+      'bg-sweet-yellow/10 text-sweet-yellow'
+    ];
+    return colors[id % colors.length];
+  };
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
-      {/* Background Blobs */}
-      <div className="blob-bg">
-        <div className="blob w-[500px] h-[500px] bg-sweet-pink/30 -top-20 -left-20 animate-pulse" />
-        <div className="blob w-[400px] h-[400px] bg-sweet-yellow/20 top-1/2 -right-20 animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="blob w-[300px] h-[300px] bg-accent/20 bottom-0 left-1/4 animate-pulse" style={{ animationDelay: '4s' }} />
-      </div>
-
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -294,10 +301,11 @@ export default function App() {
                       setProductForm({ name: '', code: '', price: 0, unit_cost: 0, category_id: 1, images: [] });
                       setShowProductModal(true);
                     }}
-                    className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-stone-800 transition-all shadow-md"
+                    className="flex items-center gap-2 bg-purple text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-purple/90 transition-all shadow-md"
                   >
                     <Plus size={16} /> Novo Produto
                   </button>
+
                   <button 
                     onClick={handleLogout}
                     className="p-2 text-stone-500 hover:text-red-500 transition-colors"
@@ -325,7 +333,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-block px-4 py-1.5 rounded-full bg-sweet-pink/10 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-4"
+            className="inline-block px-4 py-1.5 rounded-full bg-purple/10 text-purple text-xs font-bold uppercase tracking-[0.2em] mb-4"
           >
             Qualidade & Tradição
           </motion.div>
@@ -438,12 +446,17 @@ export default function App() {
                 </div>
                 <div className="p-8">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{product.category_name}</p>
+                    <span className={`w-2 h-2 rounded-full animate-pulse ${product.category_id % 2 === 0 ? 'bg-secondary' : 'bg-primary'}`} />
+                    <p className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${getCategoryColor(product.category_id)}`}>
+                      {product.category_name}
+                    </p>
                   </div>
-                  <h4 className="text-xl font-bold text-stone-900 mb-6 line-clamp-2 min-h-[3.5rem] leading-tight group-hover:text-primary transition-colors">
+                  <h4 className="text-xl font-bold text-stone-900 mb-2 line-clamp-1 leading-tight group-hover:text-primary transition-colors">
                     {product.name}
                   </h4>
+                  <p className="text-sm text-stone-500 mb-6 line-clamp-2 min-h-[2.5rem] leading-relaxed">
+                    {product.description}
+                  </p>
                   <div 
                     className="flex justify-between items-center bg-stone-50/50 p-4 rounded-3xl border border-stone-100 cursor-pointer group/btn"
                     onClick={() => {
@@ -466,8 +479,8 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Ver Produto</span>
-                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-stone-300 group-hover/btn:bg-primary group-hover/btn:text-white transition-all duration-300 group-hover/btn:rotate-12">
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Ver Produto</span>
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-stone-300 group-hover/btn:bg-secondary group-hover/btn:text-white transition-all duration-300 group-hover/btn:rotate-12">
                         <ChevronRight size={24} />
                       </div>
                     </div>
@@ -477,7 +490,7 @@ export default function App() {
                       e.stopPropagation();
                       addToCart(product);
                     }}
-                    className="w-full mt-4 py-4 bg-stone-900 text-white rounded-2xl font-bold text-sm hover:bg-primary transition-all flex items-center justify-center gap-2 shadow-md active:scale-95"
+                    className="w-full mt-4 py-4 bg-secondary text-white rounded-2xl font-bold text-sm hover:bg-secondary/90 transition-all flex items-center justify-center gap-2 shadow-md active:scale-95"
                   >
                     <Plus size={18} /> Adicionar ao Carrinho
                   </button>
@@ -617,7 +630,7 @@ export default function App() {
               <div className="w-full md:w-2/5 p-8 md:p-12 overflow-y-auto bg-white flex flex-col">
                 <div className="hidden md:block mb-8">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getCategoryColor(selectedProduct.category_id)}`}>
                       {selectedProduct.category_name}
                     </span>
                     {auth.isLoggedIn && (
@@ -663,7 +676,7 @@ export default function App() {
                       addToCart(selectedProduct);
                       setShowDetailsModal(false);
                     }}
-                    className="w-full py-5 bg-stone-900 text-white rounded-2xl font-black text-lg hover:bg-primary transition-all shadow-xl flex items-center justify-center gap-3 active:scale-[0.98]"
+                    className="w-full py-5 bg-secondary text-white rounded-2xl font-black text-lg hover:bg-secondary/90 transition-all shadow-xl flex items-center justify-center gap-3 active:scale-[0.98]"
                   >
                     <Plus size={24} /> Adicionar ao Carrinho
                   </button>
@@ -1067,7 +1080,7 @@ export default function App() {
                           <Upload size={24} />
                         </div>
                         <p className="text-sm font-bold text-stone-500 group-hover:text-primary">Clique para adicionar foto</p>
-                        <p className="text-[10px] text-stone-400 uppercase tracking-widest">PNG, JPG ou WEBP</p>
+                        <p className="text-[10px] text-stone-400 uppercase tracking-widest">PNG, JPG ou WEBP (Recomendado: Quadrada 800x800)</p>
                       </div>
                       {isUploading && (
                         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">

@@ -46,11 +46,13 @@ async function startServer() {
     const { error } = await supabase.storage
       .from("product-images")
       .upload(fileName, file.buffer, {
-        contentType: file.mimetype
+        contentType: file.mimetype,
+        upsert: true
       });
 
     if (error) {
-      return res.status(500).json(error);
+      console.error("Supabase Storage Error:", error);
+      return res.status(500).json({ success: false, error: error.message });
     }
 
     const { data } = supabase.storage
