@@ -23,32 +23,47 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+const upload = multer({
+  storage: multer.memoryStorage()
 });
-
-const upload = multer({ storage: storage });
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json());
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // API Routes
-  app.post("/api/upload", upload.single("image"), (req: any, res) => {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
-    }
-    res.json({ success: true, url: `/uploads/${req.file.filename}` });
+  app.post("/api/upload", upload.single("image"), async (req: any, res) => {
+
+  if (!req.file) {
+    return res.status(400).json({ success: false });
+  }
+
+  const file = req.file;
+  const fileName = Date.now() + "-" + file.originalname;
+
+  const { error } = await supabase.storage
+    .from("product-images")
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype
+    });
+
+  if (error) {
+    return res.status(500).json(error);
+  }
+
+  const { data } = supabase.storage
+    .from("product-images")
+    .getPublicUrl(fileName);
+
+  res.json({
+    success: true,
+    url: data.publicUrl
   });
+
+});
 
   app.get("/api/categories", async (req, res) => {
     const { data, error } = await supabase.from("categories").select("*");
@@ -159,7 +174,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
