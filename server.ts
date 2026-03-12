@@ -29,41 +29,39 @@ const upload = multer({
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = 3000;
 
   app.use(express.json());
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // API Routes
   app.post("/api/upload", upload.single("image"), async (req: any, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false });
+    }
 
-  if (!req.file) {
-    return res.status(400).json({ success: false });
-  }
+    const file = req.file;
+    const fileName = Date.now() + "-" + file.originalname;
 
-  const file = req.file;
-  const fileName = Date.now() + "-" + file.originalname;
+    const { error } = await supabase.storage
+      .from("product-images")
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype
+      });
 
-  const { error } = await supabase.storage
-    .from("product-images")
-    .upload(fileName, file.buffer, {
-      contentType: file.mimetype
+    if (error) {
+      return res.status(500).json(error);
+    }
+
+    const { data } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(fileName);
+
+    res.json({
+      success: true,
+      url: data.publicUrl
     });
-
-  if (error) {
-    return res.status(500).json(error);
-  }
-
-  const { data } = supabase.storage
-    .from("product-images")
-    .getPublicUrl(fileName);
-
-  res.json({
-    success: true,
-    url: data.publicUrl
   });
-
-});
 
   app.get("/api/categories", async (req, res) => {
     const { data, error } = await supabase.from("categories").select("*");
@@ -71,28 +69,30 @@ async function startServer() {
     res.json(data);
   });
 
-  app.post("/api/products", async (req, res) => {
-  const { code, name, description, price, unit_cost, category_id, images } = req.body;
+  app.get("/api/products", async (req, res) => {
+    const { data: products, error: prodError } = await supabase
+      .from("products")
+      .select(`
+        *,
+        categories (name)
+      `);
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .insert([{ code, name, description, price, unit_cost, category_id }])
-    .select()
-    .single();
+    if (prodError) return res.status(500).json(prodError);
 
-  if (error) return res.status(500).json(error);
+    const { data: images, error: imgError } = await supabase
+      .from("product_images")
+      .select("*");
 
-  if (images && images.length > 0) {
-    const imageInserts = images.map(url => ({
-      product_id: product.id,
-      url
+    if (imgError) return res.status(500).json(imgError);
+
+    const productsWithImages = products.map(p => ({
+      ...p,
+      category_name: p.categories?.name,
+      images: images.filter(img => img.product_id === p.id).map(img => img.url)
     }));
 
-    await supabase.from("product_images").insert(imageInserts);
-  }
-
-  res.json({ success: true });
-});
+    res.json(productsWithImages);
+  });
 
   // Admin Auth
   app.post("/api/login", (req, res) => {
@@ -109,11 +109,11 @@ async function startServer() {
 
   // Protected Routes (CRUD)
   app.post("/api/products", async (req, res) => {
-    const { code, name, description, price, category_id, images } = req.body;
+    const { code, name, description, price, unit_cost, category_id, images } = req.body;
     
     const { data: product, error: prodError } = await supabase
       .from("products")
-      .insert([{ code, name, description, price, category_id }])
+      .insert([{ code, name, description, price, unit_cost, category_id }])
       .select()
       .single();
 
@@ -129,29 +129,25 @@ async function startServer() {
   });
 
   app.put("/api/products/:id", async (req, res) => {
-  const { id } = req.params;
-  const { code, name, description, price, unit_cost, category_id, images } = req.body;
+    const { id } = req.params;
+    const { code, name, description, price, unit_cost, category_id, images } = req.body;
 
-  const { error } = await supabase
-    .from("products")
-    .update({ code, name, description, price, unit_cost, category_id })
-    .eq("id", id);
+    const { error: prodError } = await supabase
+      .from("products")
+      .update({ code, name, description, price, unit_cost, category_id })
+      .eq("id", id);
 
-  if (error) return res.status(500).json(error);
+    if (prodError) return res.status(500).json(prodError);
+    
+    await supabase.from("product_images").delete().eq("product_id", id);
+    
+    if (images && Array.isArray(images) && images.length > 0) {
+      const imageInserts = images.map(url => ({ product_id: id, url }));
+      await supabase.from("product_images").insert(imageInserts);
+    }
 
-  await supabase.from("product_images").delete().eq("product_id", id);
-
-  if (images && images.length > 0) {
-    const imageInserts = images.map(url => ({
-      product_id: id,
-      url
-    }));
-
-    await supabase.from("product_images").insert(imageInserts);
-  }
-
-  res.json({ success: true });
-});
+    res.json({ success: true });
+  });
 
   app.delete("/api/products/:id", async (req, res) => {
     const { id } = req.params;

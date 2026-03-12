@@ -15,7 +15,7 @@ import {
   Grid,
   List as ListIcon,
   Upload,
-  Image as ImageIcon,
+  ImageIcon,
   MessageCircle,
   ChevronLeft,
   ShoppingCart,
@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Category, Product, AuthState, CartItem } from './types';
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(localStorage.getItem('adminToken') !== null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -50,6 +50,7 @@ export default function App() {
     code: '',
     description: '',
     price: 0,
+    unit_cost: 0,
     category_id: 1,
     images: []
   });
@@ -111,12 +112,12 @@ export default function App() {
         body: JSON.stringify(loginForm)
       });
       const data = await res.json();
-     if (data.success) {
-  setAuth({ isLoggedIn: true, token: data.token });
-  setIsAdmin(true);
-  localStorage.setItem('adminToken', data.token);
-  setShowLoginModal(false);
-} else {
+      if (data.success) {
+        setAuth({ isLoggedIn: true, token: data.token });
+        setIsAdmin(true);
+        localStorage.setItem('adminToken', data.token);
+        setShowLoginModal(false);
+      } else {
         alert(data.message);
       }
     } catch (error) {
@@ -126,6 +127,7 @@ export default function App() {
 
   const handleLogout = () => {
     setAuth({ isLoggedIn: false, token: null });
+    setIsAdmin(false);
     localStorage.removeItem('adminToken');
   };
 
@@ -144,7 +146,7 @@ export default function App() {
         fetchData();
         setShowProductModal(false);
         setEditingProduct(null);
-        setProductForm({ name: '', code: '', description: '', price: 0, category_id: 1, images: [] });
+        setProductForm({ name: '', code: '', description: '', price: 0, unit_cost: 0, category_id: 1, images: [] });
       }
     } catch (error) {
       alert('Erro ao salvar produto');
@@ -289,7 +291,7 @@ export default function App() {
                   <button 
                     onClick={() => {
                       setEditingProduct(null);
-                      setProductForm({ name: '', code: '', price: 0, category_id: 1, image_url: '' });
+                      setProductForm({ name: '', code: '', price: 0, unit_cost: 0, category_id: 1, images: [] });
                       setShowProductModal(true);
                     }}
                     className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-stone-800 transition-all shadow-md"
@@ -458,15 +460,10 @@ export default function App() {
                         {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       {isAdmin && product.unit_cost && (
-                       <p className="text-sm text-red-600 font-semibold mt-1">
-                        Custo unitário: R$ {product.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                       )}
-                      {isAdmin && product.unit_cost && (
-                       <p className="text-xs text-green-600">
-                        Lucro: R$ {(product.price - product.unit_cost).toFixed(2)}
-                       </p>
-                       )}
+                        <p className="text-xs text-stone-500 mt-1 font-medium">
+                          Custo: R$ {product.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-opacity">Ver Produto</span>
@@ -652,6 +649,11 @@ export default function App() {
                         {selectedProduct.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
+                    {isAdmin && selectedProduct.unit_cost && (
+                      <p className="text-sm text-stone-500 mt-2 font-semibold">
+                        Custo Unitário: R$ {selectedProduct.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1002,6 +1004,19 @@ export default function App() {
                       />
                     </div>
                   </div>
+                  {isAdmin && (
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Custo Unitário (R$)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0,00"
+                        className="w-full px-6 py-4 rounded-2xl border border-stone-200 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all bg-stone-50"
+                        value={productForm.unit_cost}
+                        onChange={(e) => setProductForm({...productForm, unit_cost: parseFloat(e.target.value)})}
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-3 ml-1">Descrição do Produto</label>
                     <textarea 
