@@ -301,9 +301,9 @@ export default function App() {
                       setProductForm({ name: '', code: '', price: 0, unit_cost: 0, category_id: 1, images: [] });
                       setShowProductModal(true);
                     }}
-                    className="flex items-center gap-2 bg-purple text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-purple/90 transition-all shadow-md"
+                    className="flex items-center gap-2 bg-purple text-white px-3 py-2 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium hover:bg-purple/90 transition-all shadow-md"
                   >
-                    <Plus size={16} /> Novo Produto
+                    <Plus size={16} /> <span className="hidden sm:inline">Novo Produto</span>
                   </button>
 
                   <button 
@@ -317,9 +317,10 @@ export default function App() {
               ) : (
                 <button 
                   onClick={() => setShowLoginModal(true)}
-                  className="flex items-center gap-2 text-stone-600 hover:text-primary transition-colors font-medium text-sm bg-white/50 px-4 py-2 rounded-full border border-white/20 shadow-sm"
+                  className="p-2 text-stone-400 hover:text-primary transition-colors"
+                  title="Admin"
                 >
-                  <LogIn size={18} /> Admin
+                  <LogIn size={20} />
                 </button>
               )}
             </div>
@@ -346,11 +347,11 @@ export default function App() {
             <span className="text-primary">em cada detalhe.</span>
           </motion.h2>
           <div className="relative max-w-2xl mx-auto">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-stone-400" size={24} />
+            <Search className="absolute left-5 md:left-6 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
             <input 
               type="text" 
-              placeholder="O que você está procurando hoje?"
-              className="w-full pl-16 pr-6 py-6 bg-white/80 backdrop-blur-md rounded-3xl border border-white/20 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all shadow-xl text-lg"
+              placeholder="O que você procura?"
+              className="w-full pl-14 md:pl-16 pr-6 py-4 md:py-6 bg-white/80 backdrop-blur-md rounded-2xl md:rounded-3xl border border-white/20 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all shadow-xl text-base md:text-lg"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -359,7 +360,7 @@ export default function App() {
       </section>
 
       {/* Mobile Categories */}
-      <div className="md:hidden flex overflow-x-auto py-4 px-4 gap-2 no-scrollbar border-b border-stone-100 bg-white/30 backdrop-blur-sm">
+      <div className="md:hidden sticky top-20 z-30 flex overflow-x-auto py-4 px-4 gap-2 no-scrollbar border-b border-stone-100 bg-white/80 backdrop-blur-md">
         <button 
           onClick={() => setSelectedCategory(null)}
           className={`whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all ${!selectedCategory ? 'bg-primary text-white shadow-lg scale-105' : 'bg-white/50 text-stone-600 border border-white/20'}`}
@@ -420,7 +421,7 @@ export default function App() {
                     )}
                   </div>
                   {auth.isLoggedIn && (
-                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity duration-300 z-10">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -590,9 +591,9 @@ export default function App() {
             >
               <button 
                 onClick={() => setShowDetailsModal(false)}
-                className="absolute top-6 right-6 z-10 p-3 bg-white/10 backdrop-blur text-white md:text-stone-400 hover:text-primary transition-colors rounded-full"
+                className="absolute top-4 right-4 z-50 p-2 bg-white/90 backdrop-blur text-stone-900 shadow-xl rounded-full md:top-6 md:right-6 md:p-3 md:bg-white/10 md:text-white md:hover:text-primary transition-all"
               >
-                <X size={32} />
+                <X size={24} className="md:w-8 md:h-8" />
               </button>
 
               {/* Image Section */}
